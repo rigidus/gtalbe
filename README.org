@@ -1,0 +1,977 @@
+#+STARTUP: showall indent hidestars
+
+* Задача:
+
+Разработать и реализовать на языке Go небольшой внутренний RESTful API, который продемонстрирует следующие возможности:
+
+** Конечные точки API / схема
+
+Обеспечить конечные точки для:
+- *Запрос баланса кошелька*
+  Учитывая адрес 0x, получить и вернуть текущий баланс $FIL и iFIL этого кошелька.
+- *Отправки транзакции*
+  Позволить клиенту API отправить новую транзакцию для перевода FIL с одного кошелька на другой на блокчейне Filecoin (FEVM). Для этого необходимо принять необходимые данные (такие как отправитель, получатель, сумма и т. д.), отправить транзакцию на узел или сервис Filecoin и вернуть хэш транзакции или квитанцию.
+- *Сохранения данных транзакции*
+  При отправке транзакции сохраняйте ее данные в базе данных PostgreSQL. Как минимум, записывайте такие поля, как хэш транзакции, адрес отправителя, адрес получателя, сумма, временная метка и статус (ожидание/подтверждение/отказ).
+- *Получения транзакций*
+  Обеспечьте способ получения записей о транзакциях из базы данных (например, конечную точку для вывода списка всех транзакций или фильтрации по счету). Это должно продемонстрировать эффективный запрос (например, возможность получить все транзакции для заданного адреса). Обратите внимание, что вам не нужно беспокоиться о транзакциях, которые произошли вне контекста данного бэкэнд-сервиса.
+
+** Управление базой данных
+
+Используйте PostgreSQL для хранения и управления данными о транзакциях. Разработайте простую схему для хранения транзакций и реализуйте операции создания/чтения. Убедитесь, что данные индексируются или запрашиваются эффективно (например, для получения транзакций по определенному адресу не должно требоваться сканирование всей таблицы).
+
+** Качество кода
+
+Следуйте лучшим практикам Go для структуры проекта и стиля кода. Код должен быть ремонтопригодным и масштабируемым - это означает, что он должен быть организован в логические пакеты или слои (например, разделение обработчиков API, клиентской логики блокчейна и доступа к базе данных). Включите соответствующую обработку ошибок и ведение журнала.
+
+Стремитесь к ясности и надежности, как если бы это был код производственного качества.
+
+* Инструкции:
+
+- Разработайте API в соответствии с лучшими практиками (например, для REST используйте правильные методы HTTP и коды состояния).
+- Для взаимодействия с блокчейном вы можете использовать GLIF Pools SDK, в который встроена поддержка узлов Filecoin. Вы также можете использовать существующие библиотеки Go (например, официальный Go Ethereum SDK go-ethereum для вызовов JSON-RPC) или вызвать публичный API. Важно: Не раскрывайте реальные приватные ключи в своем коде.
+- Подготовьте базу данных PostgreSQL таким образом, чтобы мы могли легко ее настроить. Вы можете включить скрипт миграции SQL или использовать ORM (например, GORM), чтобы программно создать схему. Убедитесь, что ваш код знает, как подключиться к базе данных (например, через строку подключения или переменные окружения). Если вы используете ORM или необработанный SQL, обязательно параметризуйте запросы, чтобы предотвратить SQL-инъекции.
+- Как минимум один тест не обязателен, но рекомендуется.
+
+* Предоставляемые материалы:
+
+Предоставьте исходный код и README. README должен содержать:
+
+- Инструкции по созданию и запуску сервиса, включая все необходимые настройки (например, установка переменных окружения для строки подключения к БД, URL RPC блокчейна и т.д.)
+- Примеры вызова API (примеры запросов и ожидаемых ответов).
+
+Если для инициализации необходимы какие-либо дополнительные шаги (например, запуск миграции базы данных), четко опишите их. Если вы включили какие-либо тесты, укажите, как их запустить. Мы должны иметь возможность запустить ваш проект локально и протестировать конечные точки. По желанию вы можете включить Dockerfile или docker-compose setup, чтобы упростить запуск сервиса и базы данных, но это не обязательно.
+
+Сосредоточьте свои усилия на выполнении основных требований - лучше иметь функциональную, чистую реализацию основных функций, чем неполную попытку реализовать множество дополнительных возможностей.
+
+Вы можете упомянуть в README, какие улучшения вы бы реализовали, если бы у вас было больше времени (например, дополнительные конечные точки, лучшая обработка ошибок в некоторых областях и т.д.).
+
+* Мои вопросы
+** Что такое $FIL и iFIL?
+
+$FIL — это нативный токен сети Filecoin, децентрализованной системы хранения данных, где пользователи могут арендовать пространство у поставщиков хранения. Токен используется для оплаты услуг хранения и обеспечения работы сети. Например, можно использовать $FIL для покупки места на серверах, распределенных по всему миру, для безопасного хранения данных.
+
+iFIL — ERC20-токен на FEVM для начисления вознаграждений в GLIF (подробности: https://docs.glif.io/for-liquidity-providers/glif-reward-mechanism-ifil)
+
+* Мои умолчания
+*** Эндпоинты RESTful
+
+- GET /balance/{address} - получение баланса кошелька ($FIL и iFIL) по адресу.
+  Баланс возвращается в двух токенах ($FIL и iFIL). Для получения баланса iFIL я использую библиотеку, совместимую с Ethereum, вызывая balanceOf контракта iFIL, предполагая, что адрес контракта известен.
+  - Принимает адрес кошелька в формате 0x...
+  - Запрашивает баланс $FIL через GLIF SDK.
+  - Запрашивает баланс iFIL через вызов контракта ERC20.
+  - Возвращает JSON, например: {"fil": "10.0", "ifil": "5.0"}.
+  - Ошибки: 500 при сбое запроса к блокчейну, 400 при неверном адресе.
+- POST /transaction - отправка транзакции на блокчейн Filecoin (FEVM).
+  Предполагаю, что эндпоинт принимает JSON с подписанной транзакцией в hex в поле ~signedTx~. Ее нужно опубликовать через SDK и сохранить в БД (клиент подписывает транзакцию локально, а API только транслирует). я предлагаю принимать JSON с "signedTx", отправителем, получателем, суммой и меткой времени, даже если часть можно извлечь из подписанной транзакции, для простоты. В задаче упоминаются статусы "confirmed"/"failed", так что, вероятно, ожидается обновление статуса. Но это требует мониторинга транзакций, что может быть за пределами задачи.
+  Принимает JSON с полями:
+  - signedTx (строка HEX подписанной транзакции),
+  - sender (адрес отправителя),
+  - receiver (адрес получателя),
+  - amount (сумма в $FIL, строка или число).
+  Отправляет подписанную транзакцию в сеть через GLIF SDK.
+  Если отправка успешна, сохраняет детали в базе данных с статусом "pending".
+  Возвращает JSON с хешем транзакции, например: {"hash": "0xabc123..."}
+- GET /transactions - получение списка транзакций с фильтрацией по адресу отправителя или получателя.
+  Поддерживает query-параметры для фильтрации, например:
+  - ?sender=0x123... — фильтр по отправителю.
+  - ?receiver=0x456... — фильтр по получателю.
+  Возвращает список транзакций в формате JSON, например:
+  [{"hash": "0xabc...", "sender": "0x123...", "receiver": "0x456...", "amount": "100", "timestamp": "2025-04-09T12:16:00Z", "status": "pending"}]
+
+*** Библиотеки
+
+- Для Filecoin (FEVM) использовать GLIF Pools SDK (специализирован для Filecoin, что может упростить задачу) или go-ethereum (через JSON-RPC).
+- Для базы данных выбрать PostgreSQL и, опционально, ORM (например, GORM) или raw SQL (Нужно защититься от SQL-инъекций через параметризацию).
+- Для обработки ошибок - middleware для централизованной обработки ошибок, например, Gin (ловит паники и возвращает 500 с описанием ошибки)
+- Для логгинга - библиотеку логирования, такую как zap или logrus, для записи ключевых событий:
+  Логировать успешные отправки транзакций, ошибки подключения к блокчейну или базе данных. Не логгировать приватники (адреса контрактов можно)
+
+#+BEGIN_EXAMPLE
+  log.Info("Transaction submitted", zap.String("hash", txHash))
+  log.Error("Failed to connect to blockchain", zap.Error(err))
+#+END_EXAMPLE
+
+*** Схема БД
+
+| id        | BIGINT                            | первичный ключ     |
+| hash      | VARCHAR                           | хеш транзакции     |
+| sender    | VARCHAR                           | адрес отправителя  |
+| receiver  | VARCHAR                           | адрес получателя   |
+| amount    | DECIMAL                           | сумма              |
+| timestamp | TIMESTAMP                         | время              |
+| status    | ENUM: (pending confirmed failed). |                    |
+
+Добавить индексы на sender и receiver для быстрого поиска.
+
+*** Тестирование
+
+- Написать unit-тесты для обработчиков и функций базы данных (например, SaveTransaction, GetTransactions).
+- Для блокчейна использовать mock-объекты, например, создайте mock-сервер для RPC-запросов.
+
+#+BEGIN_EXAMPLE
+  func TestSaveTransaction(t *testing.T) {
+      tx := models.Transaction{Hash: "0x123...", Sender: "0x456..."}
+      err := database.SaveTransaction(&tx)
+      assert.NoError(t, err)
+  }
+#+END_EXAMPLE
+
+*** Документация
+
+Генерировать README.md в нем:
+- Как установить зависимости (go get ...).
+- Как настроить базу данных (например, через переменную окружения DATABASE_URL).
+- Как подключиться к блокчейну (URL RPC или конфигурация GLIF SDK через переменные окружения).
+  - Примеры запросов к API:
+    - curl -X GET http://localhost:8080/balance/0x123... → Ожидаемый ответ: {"fil": "10.0", "ifil": "5.0"}.
+    - curl -X POST http://localhost:8080/transaction -d '{"signedTx": "0x...", "sender": "0x123...", "receiver": "0x456...", "amount": "100"}' → Ожидаемый ответ: {"hash": "0xabc..."}.
+        curl -X GET "http://localhost:8080/transactions?sender=0x123..." → Список транзакций.
+- Как запустить миграции базы данных (например, go run main.go migrate).
+- Как запустить тесты (go test ./...).
+
+*** Развертывание
+
+- Генерировать необходимые тестовые ключи, скрипты и миграции
+
+*** Файловая структура
+
+- handlers - обработчики API.
+- blockchain - взаимодействие с блокчейном (Filecoin через GLIF SDK).
+- database - операции с PostgreSQL.
+- models - структуры данных, например, для транзакций.
+
+* Возможные траблы
+
+- Баланс iFIL: Если GLIF SDK не поддерживает прямой доступ к iFIL, потребуется дополнительная интеграция с go-ethereum для вызова контракта. Можно использовать переменные окружения для адреса контракта iFIL?
+- Подписанные транзакции: Принятие подписанных транзакций от клиента требует проверки их валидности перед отправкой в блокчейн.
+- Статус транзакций: Сохранение статуса "pending" без обновления может быть недостаточным для реального сценария. Можно отметить в документации, что в продакшене требуется фоновый процесс для обновления статуса.
+
+* План работ
+
+- Настроить БД, не забыть индексы, написать модели и миграции, генерировать ключи
+- Реализовать интеграцию с блокчейном через библиотеки
+- Реализовать эндпоинты (возможно фреймворк вроде Gin или Echo для создания RESTful API)
+- Реализовать логгинг и прочую обработку ошибок
+- Написать тесты
+- Докеризовать все это
+
+* Зависимости
+
+Добавить в go.mod
+
+#+BEGIN_SRC go :tangle go.mod
+  require (
+      github.com/ethereum/go-ethereum v1.13.14
+      github.com/glifio/go-pools-sdk v0.0.0 // Уточните версию
+      github.com/stretchr/testify v1.9.0
+  )
+#+END_SRC
+
+* Модель для GORM
+
+#+BEGIN_SRC go :tangle models/Transaction.go
+  type Transaction struct {
+      ID        uint64    `gorm:"primaryKey"`
+      Hash      string    `gorm:"type:varchar(66);unique"`
+      Sender    string    `gorm:"type:varchar(42)"`
+      Receiver  string    `gorm:"type:varchar(42)"`
+      Amount    float64   `gorm:"type:decimal(30,18)"`
+      Timestamp time.Time `gorm:"type:timestamp with time zone"`
+      Status    string    `gorm:"type:enum('pending', 'confirmed', 'failed');default:'pending'"`
+  }
+#+END_SRC
+
+* Скрипт миграции для создания таблицы транзакций
+
+по идее его надо бы генерировать из орга
+
+#+BEGIN_SRC sql :tangle migrations/create_transacts_tbl.sql
+  CREATE TABLE transactions (
+      id BIGSERIAL PRIMARY KEY,
+      hash VARCHAR(66) UNIQUE NOT NULL,
+      sender VARCHAR(42) NOT NULL,
+      receiver VARCHAR(42) NOT NULL,
+      amount DECIMAL(30,18) NOT NULL,
+      timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      status VARCHAR(10) CHECK (status IN ('pending', 'confirmed', 'failed')) DEFAULT 'pending'
+  );
+
+  CREATE INDEX idx_transactions_sender ON transactions(sender);
+  CREATE INDEX idx_transactions_receiver ON transactions(receiver);
+#+END_SRC
+
+* Код для интеграции с блокчейном (вызывается эндпоинтами)
+
+Определение интерфейсов для взаимодействия с блокчейном.
+
+Client: Интерфейс для абстракции GLIF SDK и ERC20-клиента.
+
+#+BEGIN_SRC go :tangle blockchain/types.go
+  package blockchain
+
+  import (
+      "context"
+  )
+
+  // Client defines the interface for blockchain interactions.
+  type Client interface {
+      GetFILBalance(ctx context.Context, address string) (string, error)
+      GetIFILBalance(ctx context.Context, address string) (string, error)
+      SubmitTransaction(ctx context.Context, signedTx string) (string, error)
+  }
+#+END_SRC
+
+Основной код интеграции с блокчейном.
+
+- NewBlockchainClient: Инициализирует клиента с URL RPC и адресом контракта iFIL.
+- GetFILBalance: Запрашивает баланс $FIL через GLIF SDK.
+- GetIFILBalance: Вызывает метод balanceOf контракта iFIL через go-ethereum.
+- SubmitTransaction: Отправляет подписанную транзакцию через GLIF SDK.
+- ERC20: Минимальная реализация ERC20-интерфейса для вызова balanceOf. В реальном проекте ABI генерируется через abigen.
+
+#+BEGIN_SRC go :tangle blockchain/blockchain.go
+  package blockchain
+
+  import (
+      "context"
+      "log"
+      "math/big"
+
+      "github.com/ethereum/go-ethereum/accounts/abi/bind"
+      "github.com/ethereum/go-ethereum/common"
+      "github.com/ethereum/go-ethereum/ethclient"
+      "github.com/glifio/go-pools-sdk/sdk" // Предполагаемый импорт для GLIF SDK
+  )
+
+  type BlockchainClient struct {
+      glifClient  *sdk.Client
+      ethClient   *ethclient.Client
+      ifilAddress common.Address
+  }
+
+  func NewBlockchainClient(rpcURL, ifilContractAddress string) (*BlockchainClient, error) {
+      // Инициализация GLIF клиента
+      glifClient, err := sdk.NewClient(rpcURL)
+      if err != nil {
+          return nil, err
+      }
+
+      // Инициализация Ethereum клиента для iFIL
+      ethClient, err := ethclient.Dial(rpcURL)
+      if err != nil {
+          return nil, err
+      }
+
+      return &BlockchainClient{
+          glifClient:  glifClient,
+          ethClient:   ethClient,
+          ifilAddress: common.HexToAddress(ifilContractAddress),
+      }, nil
+  }
+
+  // GetFILBalance retrieves the $FIL balance for a given address.
+  func (c *BlockchainClient) GetFILBalance(ctx context.Context, address string) (string, error) {
+      balance, err := c.glifClient.GetBalance(address)
+      if err != nil {
+          log.Printf("Failed to get FIL balance for %s: %v", address, err)
+          return "", err
+      }
+      return balance.String(), nil // Предполагается, что balance — big.Int
+  }
+
+  // GetIFILBalance retrieves the iFIL balance for a given address.
+  func (c *BlockchainClient) GetIFILBalance(ctx context.Context, address string) (string, error) {
+      // Предполагаем, что iFIL — стандартный ERC20 токен
+      contract, err := NewERC20(c.ifilAddress, c.ethClient)
+      if err != nil {
+          return "", err
+      }
+
+      balance, err := contract.BalanceOf(&bind.CallOpts{Context: ctx}, common.HexToAddress(address))
+      if err != nil {
+          log.Printf("Failed to get iFIL balance for %s: %v", address, err)
+          return "", err
+      }
+      return balance.String(), nil
+  }
+
+  // SubmitTransaction submits a signed transaction to the Filecoin network.
+  func (c *BlockchainClient) SubmitTransaction(ctx context.Context, signedTx string) (string, error) {
+      txHash, err := c.glifClient.SubmitTransaction(signedTx)
+      if err != nil {
+          log.Printf("Failed to submit transaction: %v", err)
+          return "", err
+      }
+      return txHash, nil
+  }
+
+  // ERC20 represents a minimal ERC20 contract interface (generated with abigen in real scenario).
+  type ERC20 struct {
+      contract *bind.BoundContract
+  }
+
+  func NewERC20(address common.Address, client *ethclient.Client) (*ERC20, error) {
+      // ABI для ERC20 метода balanceOf (в реальном проекте сгенерировать через abigen)
+      abi := `[{"constant":true,"inputs":[{"name":"_owner","type":"address"}],"name":"balanceOf","outputs":[{"name":"balance","type":"uint256"}],"type":"function"}]`
+      contract, err := bind.NewBoundContract(address, abi, client, client, client)
+      if err != nil {
+          return nil, err
+      }
+      return &ERC20{contract: contract}, nil
+  }
+
+  func (e *ERC20) BalanceOf(opts *bind.CallOpts, address common.Address) (*big.Int, error) {
+      var result []*big.Int
+      err := e.contract.Call(opts, &result, "balanceOf", address)
+      if err != nil {
+          return nil, err
+      }
+      return result[0], nil
+  }
+#+END_SRC
+
+* Kод для операций с базой
+
+#+BEGIN_SRC go :tangle database/database.go
+  package database
+
+  import "gorm.io/gorm"
+
+  func SaveTransaction(db *gorm.DB, tx *models.Transaction) error {
+      return db.Create(tx).Error
+  }
+
+  func GetTransactions(db *gorm.DB) []models.Transaction {
+      var transactions []models.Transaction
+      db.Find(&transactions)
+      return transactions
+  }
+#+END_SRC
+
+* Код эндпойнтов
+
+GetBalance
+
+    Валидация: Проверяет формат адреса (0x + 40 символов).
+    Интеграция с блокчейном: Вызывает GetFILBalance и GetIFILBalance из blockchain.
+    Обработка ошибок: Логирует ошибки и возвращает HTTP 500 при сбоях.
+    Ответ: Возвращает JSON с балансами $FIL и iFIL.
+
+SubmitTransaction
+
+    Валидация: Проверяет формат signedTx, адресов и положительность суммы.
+    Интеграция с блокчейном: Отправляет транзакцию через SubmitTransaction.
+    Сохранение: Сохраняет данные в базе через SaveTransaction.
+    Обработка ошибок: Логирует и возвращает HTTP 400/500 при ошибках.
+    Ответ: Возвращает JSON с хешем транзакции (HTTP 201).
+
+GetTransactions
+
+    Валидация: Проверяет формат фильтров sender и receiver.
+    Интеграция с базой данных: Строит запрос с фильтрами и извлекает транзакции.
+    Обработка ошибок: Логирует и возвращает HTTP 500 при сбоях.
+    Ответ: Возвращает JSON со списком транзакций.
+
+Проверка:
+
+    curl http://localhost:8080/balance/0x1234567890abcdef1234567890abcdef12345678
+    curl -X POST -H "Content-Type: application/json" -d '{"signedTx": "0xdeadbeef", "sender": "0x1234567890abcdef1234567890abcdef12345678", "receiver": "0xabcdef1234567890abcdef1234567890abcdef12", "amount": 100}' http://localhost:8080/transaction
+    curl "http://localhost:8080/transactions?sender=0x1234567890abcdef1234567890abcdef12345678"
+
+#+BEGIN_SRC go :tangle handlers/handlers.go
+  package handlers
+
+  import (
+      "context"
+      "encoding/json"
+      "net/http"
+      "strconv"
+      "strings"
+
+      "github.com/gorilla/mux"
+      "go.uber.org/zap"
+      "github.com/yourproject/blockchain"
+      "github.com/yourproject/database"
+      "github.com/yourproject/models"
+  )
+
+  // Handler encapsulates dependencies for HTTP handlers.
+  type Handler struct {
+      bc     blockchain.Client
+      db     *gorm.DB
+      logger *zap.Logger
+  }
+
+  // NewHandler creates a new Handler instance with dependencies.
+  func NewHandler(bc blockchain.Client, db *gorm.DB, logger *zap.Logger) *Handler {
+      return &Handler{
+          bc:     bc,
+          db:     db,
+          logger: logger,
+      }
+  }
+
+  // GetBalance handles GET /balance/{address} to retrieve FIL and iFIL balances.
+  func (h *Handler) GetBalance(w http.ResponseWriter, r *http.Request) {
+      vars := mux.Vars(r)
+      address := vars["address"]
+      ctx := r.Context()
+
+      // Валидация адреса
+      if !strings.HasPrefix(address, "0x") || len(address) != 42 {
+          h.logger.Warn("Invalid address format", zap.String("address", address))
+          http.Error(w, "Invalid address format", http.StatusBadRequest)
+          return
+      }
+
+      // Получение баланса $FIL
+      filBalance, err := h.bc.GetFILBalance(ctx, address)
+      if err != nil {
+          h.logger.Error("Failed to get FIL balance", zap.String("address", address), zap.Error(err))
+          http.Error(w, "Failed to get FIL balance", http.StatusInternalServerError)
+          return
+      }
+
+      // Получение баланса iFIL
+      ifilBalance, err := h.bc.GetIFILBalance(ctx, address)
+      if err != nil {
+          h.logger.Error("Failed to get iFIL balance", zap.String("address", address), zap.Error(err))
+          http.Error(w, "Failed to get iFIL balance", http.StatusInternalServerError)
+          return
+      }
+
+      // Формирование ответа
+      response := map[string]string{
+          "fil":  filBalance,
+          "ifil": ifilBalance,
+      }
+      w.Header().Set("Content-Type", "application/json")
+      if err := json.NewEncoder(w).Encode(response); err != nil {
+          h.logger.Error("Failed to encode response", zap.Error(err))
+          http.Error(w, "Internal server error", http.StatusInternalServerError)
+      }
+
+      h.logger.Info("Balance retrieved", zap.String("address", address), zap.String("fil", filBalance), zap.String("ifil", ifilBalance))
+  }
+
+  // SubmitTransaction handles POST /transaction to submit a new transaction.
+  func (h *Handler) SubmitTransaction(w http.ResponseWriter, r *http.Request) {
+      ctx := r.Context()
+
+      // Декодирование запроса
+      var req struct {
+          SignedTx string  `json:"signedTx"`
+          Sender   string  `json:"sender"`
+          Receiver string  `json:"receiver"`
+          Amount   float64 `json:"amount"`
+      }
+      if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+          h.logger.Warn("Invalid request body", zap.Error(err))
+          http.Error(w, "Invalid request body", http.StatusBadRequest)
+          return
+      }
+
+      // Валидация входных данных
+      if !strings.HasPrefix(req.SignedTx, "0x") || len(req.SignedTx) < 10 {
+          h.logger.Warn("Invalid signed transaction format", zap.String("signedTx", req.SignedTx))
+          http.Error(w, "Invalid signed transaction format", http.StatusBadRequest)
+          return
+      }
+      if !strings.HasPrefix(req.Sender, "0x") || len(req.Sender) != 42 {
+          h.logger.Warn("Invalid sender address", zap.String("sender", req.Sender))
+          http.Error(w, "Invalid sender address", http.StatusBadRequest)
+          return
+      }
+      if !strings.HasPrefix(req.Receiver, "0x") || len(req.Receiver) != 42 {
+          h.logger.Warn("Invalid receiver address", zap.String("receiver", req.Receiver))
+          http.Error(w, "Invalid receiver address", http.StatusBadRequest)
+          return
+      }
+      if req.Amount <= 0 {
+          h.logger.Warn("Invalid amount", zap.Float64("amount", req.Amount))
+          http.Error(w, "Amount must be positive", http.StatusBadRequest)
+          return
+      }
+
+      // Отправка транзакции в блокчейн
+      txHash, err := h.bc.SubmitTransaction(ctx, req.SignedTx)
+      if err != nil {
+          h.logger.Error("Failed to submit transaction", zap.String("signedTx", req.SignedTx), zap.Error(err))
+          http.Error(w, "Failed to submit transaction", http.StatusInternalServerError)
+          return
+      }
+
+      // Сохранение транзакции в базе данных
+      tx := &models.Transaction{
+          Hash:     txHash,
+          Sender:   req.Sender,
+          Receiver: req.Receiver,
+          Amount:   req.Amount,
+          Status:   "pending",
+      }
+      if err := database.SaveTransaction(h.db, tx); err != nil {
+          h.logger.Error("Failed to save transaction", zap.String("hash", txHash), zap.Error(err))
+          http.Error(w, "Failed to save transaction", http.StatusInternalServerError)
+          return
+      }
+
+      // Формирование ответа
+      response := map[string]string{
+          "hash": txHash,
+      }
+      w.Header().Set("Content-Type", "application/json")
+      w.WriteHeader(http.StatusCreated)
+      if err := json.NewEncoder(w).Encode(response); err != nil {
+          h.logger.Error("Failed to encode response", zap.Error(err))
+          http.Error(w, "Internal server error", http.StatusInternalServerError)
+      }
+
+      h.logger.Info("Transaction submitted", zap.String("hash", txHash), zap.String("sender", req.Sender), zap.String("receiver", req.Receiver))
+  }
+
+  // GetTransactions handles GET /transactions to retrieve transaction records.
+  func (h *Handler) GetTransactions(w http.ResponseWriter, r *http.Request) {
+      ctx := r.Context()
+      query := r.URL.Query()
+
+      // Получение фильтров из query-параметров
+      sender := query.Get("sender")
+      receiver := query.Get("receiver")
+
+      // Валидация фильтров
+      if sender != "" && (!strings.HasPrefix(sender, "0x") || len(sender) != 42) {
+          h.logger.Warn("Invalid sender filter", zap.String("sender", sender))
+          http.Error(w, "Invalid sender filter", http.StatusBadRequest)
+          return
+      }
+      if receiver != "" && (!strings.HasPrefix(receiver, "0x") || len(receiver) != 42) {
+          h.logger.Warn("Invalid receiver filter", zap.String("receiver", receiver))
+          http.Error(w, "Invalid receiver filter", http.StatusBadRequest)
+          return
+      }
+
+      // Построение запроса к базе данных
+      dbQuery := h.db.WithContext(ctx)
+      if sender != "" {
+          dbQuery = dbQuery.Where("sender = ?", sender)
+      }
+      if receiver != "" {
+          dbQuery = dbQuery.Where("receiver = ?", receiver)
+      }
+
+      // Извлечение транзакций
+      var transactions []models.Transaction
+      if err := dbQuery.Find(&transactions).Error; err != nil {
+          h.logger.Error("Failed to retrieve transactions", zap.Error(err))
+          http.Error(w, "Failed to retrieve transactions", http.StatusInternalServerError)
+          return
+      }
+
+      // Формирование ответа
+      w.Header().Set("Content-Type", "application/json")
+      if err := json.NewEncoder(w).Encode(transactions); err != nil {
+          h.logger.Error("Failed to encode response", zap.Error(err))
+          http.Error(w, "Internal server error", http.StatusInternalServerError)
+      }
+
+      h.logger.Info("Transactions retrieved", zap.Int("count", len(transactions)), zap.String("sender", sender), zap.String("receiver", receiver))
+  }
+#+END_SRC
+
+* Main
+
+#+BEGIN_SRC go :tangle main.go
+  package main
+
+  import (
+      "log"
+      "net/http"
+      "os"
+
+      "github.com/gorilla/mux"
+      "go.uber.org/zap"
+      "gorm.io/driver/postgres"
+      "gorm.io/gorm"
+      "github.com/yourproject/blockchain"
+      "github.com/yourproject/handlers"
+  )
+
+  func main() {
+      // Инициализация логгера
+      logger, _ := zap.NewProduction()
+      defer logger.Sync()
+
+      // Подключение к базе данных
+      dbURL := os.Getenv("DATABASE_URL")
+      db, err := gorm.Open(postgres.Open(dbURL), &gorm.Config{})
+      if err != nil {
+          logger.Fatal("Failed to connect to database", zap.Error(err))
+      }
+
+      // Инициализация клиента блокчейна
+      rpcURL := os.Getenv("BLOCKCHAIN_RPC_URL")
+      ifilAddress := os.Getenv("IFIL_CONTRACT_ADDRESS")
+      bc, err := blockchain.NewBlockchainClient(rpcURL, ifilAddress)
+      if err != nil {
+          logger.Fatal("Failed to initialize blockchain client", zap.Error(err))
+      }
+
+      // Инициализация обработчиков
+      h := handlers.NewHandler(bc, db, logger)
+
+      // Настройка маршрутов
+      r := mux.NewRouter()
+      r.HandleFunc("/balance/{address}", h.GetBalance).Methods("GET")
+      r.HandleFunc("/transaction", h.SubmitTransaction).Methods("POST")
+      r.HandleFunc("/transactions", h.GetTransactions).Methods("GET")
+
+      // Запуск сервера
+      port := ":8080"
+      logger.Info("Starting server", zap.String("port", port))
+      if err := http.ListenAndServe(port, r); err != nil {
+          logger.Fatal("Server failed", zap.Error(err))
+      }
+  }
+#+END_SRC
+
+* Файлы тестов
+
+Добавление инструкций по тестированию в README.md
+
+#+BEGIN_SRC markdown :tangle README.md
+  # Testing
+
+  The project includes unit and integration tests to ensure correctness of implementation. To run all tests:
+
+  ```sh
+  go test ./...
+
+
+  ## Run tests
+
+  Tests use Testcontainers to create isolated PostgreSQL containers. Make sure Docker is installed and running.
+
+  ### Requirements
+  - Docker and Docker Compose
+  - Go 1.20 or higher (to run locally)
+
+  ### Running Tests via Docker Compose
+  1. Create an `.env` file with environment variables (see `.env.example` for an example).
+  2. Run the command:
+     ```sh
+   docker-compose -f docker-compose.yml run --rm -e TESTCONTAINERS_HOST_OVERRIDE=host.docker.internal app go test ./....
+#+END_SRC
+
+Перед тестированием надо настроить все окружение, моки etc
+
+Нужен Docker для запуска тестов БД, так как они требуют изолированного PostgreSQL.
+
+Dockerfile:
+
+#+BEGIN_SRC text
+  # Этап сборки
+  FROM golang:1.20-bullseye AS builder
+  WORKDIR /app
+  COPY go.mod go.sum ./
+  RUN go mod download
+  COPY . .
+  RUN CGO_ENABLED=0 GOOS=linux go build -o main .
+
+  # Этап запуска тестов
+  FROM golang:1.20-bullseye AS tester
+  WORKDIR /app
+  COPY --from=builder /app .
+  CMD ["go", "test", "./..."]
+
+  # Этап продакшен
+  FROM scratch AS production
+  COPY --from=builder /app/main /
+  EXPOSE 8080
+  CMD ["/main"]
+#+END_SRC
+
+docker-compose.yml:
+
+#+BEGIN_SRC text
+  version: '3.8'
+
+  services:
+    app:
+      build:
+        context: .
+        target: production
+      ports:
+        - "8080:8080"
+      environment:
+        - DATABASE_URL=postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?sslmode=disable
+        - BLOCKCHAIN_RPC_URL=${BLOCKCHAIN_RPC_URL}
+        - IFIL_CONTRACT_ADDRESS=${IFIL_CONTRACT_ADDRESS}
+      depends_on:
+        db:
+          condition: service_healthy
+
+    db:
+      image: postgres:16
+      environment:
+        - POSTGRES_USER=${POSTGRES_USER}
+        - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+        - POSTGRES_DB=${POSTGRES_DB}
+      volumes:
+        - pgdata:/var/lib/postgresql/data
+      healthcheck:
+        test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+        interval: 10s
+        timeout: 5s
+        retries: 5
+
+  volumes:
+    pgdata:
+#+END_SRC
+
+.env.example:
+
+#+BEGIN_SRC text
+  POSTGRES_USER=testuser
+  POSTGRES_PASSWORD=testpass
+  POSTGRES_DB=testdb
+  BLOCKCHAIN_RPC_URL=https://api.calibration.node.glif.io/rpc/v0
+  IFIL_CONTRACT_ADDRESS=0x1234567890abcdef1234567890abcdef12345678
+#+END_SRC
+
+** Тесты для API-обработчиков
+
+с использованием моков для блокчейна и базы данных
+
+- TestGetBalance_Success: Проверяет успешный запрос баланса по адресу, возвращает ожидаемые значения $FIL и iFIL.
+- TestGetBalance_InvalidAddress: Проверяет обработку невалидного адреса (HTTP 400).
+- TestGetBalance_BlockchainError: Проверяет обработку ошибки при запросе к блокчейну (HTTP 500).
+- TestSubmitTransaction_Success: Проверяет успешную отправку транзакции с сохранением в базе.
+- TestSubmitTransaction_InvalidData: Проверяет обработку невалидных данных в запросе (HTTP 400).
+- TestSubmitTransaction_DatabaseError: Проверяет обработку ошибки при сохранении в базу (HTTP 500).
+- TestGetTransactions_Success: Проверяет получение списка транзакций без фильтров.
+- TestGetTransactions_WithSenderFilter: Проверяет фильтрацию по отправителю.
+- TestGetTransactions_WithReceiverFilter: Проверяет фильтрацию по получателю.
+- TestGetTransactions_NoTransactions: Проверяет возврат пустого списка при отсутствии транзакций.
+
+#+BEGIN_SRC go :tangle handlers/handlers_test.go
+  func TestGetBalance_Success(t *testing.T) {
+      mockBC := &MockBlockchainClient{
+          GetFILBalanceFunc: func(address string) (string, error) {
+              return "10.0", nil
+          },
+          GetIFILBalanceFunc: func(address string) (string, error) {
+              return "5.0", nil
+          },
+      }
+
+      req, _ := http.NewRequest("GET", "/balance/0x123", nil)
+      rr := httptest.NewRecorder()
+      handler := http.HandlerFunc(handlers.GetBalance(mockBC))
+      handler.ServeHTTP(rr, req)
+
+      if status := rr.Code; status != http.StatusOK {
+          t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
+      }
+
+      expected := `{"fil":"10.0","ifil":"5.0"}`
+      if rr.Body.String() != expected {
+          t.Errorf("handler returned unexpected body: got %v want %v", rr.Body.String(), expected)
+      }
+  }
+#+END_SRC
+
+** Тесты для функций взаимодействия с блокчейном
+
+с использованием моков для GLIF SDK
+
+- TestGetFILBalance_Success: Проверяет успешное получение баланса $FIL.
+- TestGetIFILBalance_Success: Проверяет успешное получение баланса iFIL (ERC20-токен).
+- TestSubmitTransaction_Success: Проверяет успешную отправку транзакции.
+
+#+BEGIN_SRC go :tangle blockchain/blockchain_test.go
+  package blockchain
+
+  import (
+      "context"
+      "math/big"
+      "testing"
+
+      "github.com/ethereum/go-ethereum/common"
+      "github.com/stretchr/testify/assert"
+  )
+
+  // MockGLIFClient mocks the GLIF SDK client.
+  type MockGLIFClient struct {
+      GetBalanceFunc       func(address string) (*big.Int, error)
+      SubmitTransactionFunc func(signedTx string) (string, error)
+  }
+
+  func (m *MockGLIFClient) GetBalance(address string) (*big.Int, error) {
+      return m.GetBalanceFunc(address)
+  }
+
+  func (m *MockGLIFClient) SubmitTransaction(signedTx string) (string, error) {
+      return m.SubmitTransactionFunc(signedTx)
+  }
+
+  // MockEthClient mocks the Ethereum client for iFIL.
+  type MockEthClient struct {
+      BalanceOfFunc func(address common.Address) (*big.Int, error)
+  }
+
+  func (m *MockEthClient) BalanceOf(address common.Address) (*big.Int, error) {
+      return m.BalanceOfFunc(address)
+  }
+
+  func TestGetFILBalance_Success(t *testing.T) {
+      mockGLIF := &MockGLIFClient{
+          GetBalanceFunc: func(address string) (*big.Int, error) {
+              return big.NewInt(10000000000000000000), nil // 10 FIL
+          },
+      }
+      client := &BlockchainClient{
+          glifClient: mockGLIF,
+      }
+
+      balance, err := client.GetFILBalance(context.Background(), "0x123")
+      assert.NoError(t, err)
+      assert.Equal(t, "10000000000000000000", balance)
+  }
+
+  func TestGetIFILBalance_Success(t *testing.T) {
+      mockEth := &MockEthClient{
+          BalanceOfFunc: func(address common.Address) (*big.Int, error) {
+              return big.NewInt(5000000000000000000), nil // 5 iFIL
+          },
+      }
+      client := &BlockchainClient{
+          ethClient:   nil, // Реальный ethClient не нужен для мока
+          ifilAddress: common.HexToAddress("0x456"),
+      }
+      // Мокаем ERC20 контракт вручную для теста
+      client.ethClient = nil // Предполагаем, что это не влияет на тест с моками
+      balance, err := client.GetIFILBalance(context.Background(), "0x123")
+      assert.NoError(t, err)
+      assert.Equal(t, "5000000000000000000", balance)
+  }
+
+  func TestSubmitTransaction_Success(t *testing.T) {
+      mockGLIF := &MockGLIFClient{
+          SubmitTransactionFunc: func(signedTx string) (string, error) {
+              return "0xabc123", nil
+          },
+      }
+      client := &BlockchainClient{
+          glifClient: mockGLIF,
+      }
+
+      txHash, err := client.SubmitTransaction(context.Background(), "0xdeadbeef")
+      assert.NoError(t, err)
+      assert.Equal(t, "0xabc123", txHash)
+  }
+#+END_SRC
+
+** Тесты для операций с базой данных
+
+с использованием SQLite в памяти через GORM
+
+- TestSaveTransaction_Success: Проверяет сохранение транзакции.
+- TestGetTransactions_Success: Проверяет получение всех транзакций.
+- TestGetTransactions_WithSenderFilter: Проверяет фильтрацию по отправителю.
+- TestGetTransactions_WithReceiverFilter: Проверяет фильтрацию по получателю.
+- TestGetTransactions_NoTransactions: Проверяет возврат пустого списка.
+
+Зависимости
+- github.com/testcontainers/testcontainers-go
+- github.com/testcontainers/testcontainers-go/modules/postgres
+
+#+BEGIN_SRC go :tangle database/database_test.go
+  package database
+
+  import (
+      "context"
+      "log"
+      "os"
+      "testing"
+
+      "github.com/testcontainers/testcontainers-go"
+      "github.com/testcontainers/testcontainers-go/modules/postgres"
+      "gorm.io/driver/postgres"
+      "gorm.io/gorm"
+  )
+
+  var testDB *gorm.DB
+
+  func TestMain(m *testing.M) {
+      ctx := context.Background()
+      postgresContainer, err := postgres.Run(ctx,
+          testcontainers.WithImage("postgres:16-alpine"),
+          postgres.WithDatabase("testdb"),
+          postgres.WithUsername("testuser"),
+          postgres.WithPassword("testpass"),
+      )
+      if err != nil {
+          log.Fatal(err)
+      }
+      defer postgresContainer.Terminate(ctx)
+
+      connectionString, err := postgresContainer.ConnectionString(ctx)
+      if err != nil {
+          log.Fatal(err)
+      }
+
+      db, err := gorm.Open(postgres.Open(connectionString), &gorm.Config{})
+      if err != nil {
+          log.Fatal(err)
+      }
+
+      db.AutoMigrate(&models.Transaction{})
+
+      testDB = db
+
+      code := m.Run()
+
+      os.Exit(code)
+  }
+
+
+  func TestSaveTransaction_Success(t *testing.T) {
+      tx := &models.Transaction{
+          Hash:     "0xabc",
+          Sender:   "0x123",
+          Receiver: "0x456",
+          Amount:   100,
+          Status:   "pending",
+      }
+
+      err := SaveTransaction(testDB, tx)
+      if err != nil {
+          t.Errorf("failed to save transaction: %v", err)
+      }
+
+      var savedTx models.Transaction
+      testDB.First(&savedTx, "hash = ?", "0xabc")
+      if savedTx.ID == 0 {
+          t.Error("transaction not saved")
+      }
+  }
+
+  func TestGetTransactions_Success(t *testing.T) {
+      // Предварительно сохраняем транзакцию для теста
+      tx := &models.Transaction{
+          Hash:     "0xabc",
+          Sender:   "0x123",
+          Receiver: "0x456",
+          Amount:   100,
+          Status:   "pending",
+      }
+      testDB.Create(tx)
+
+      transactions := GetTransactions(testDB)
+      if len(transactions) == 0 {
+          t.Error("expected transactions but got none")
+      }
+  }
+#+END_SRC
