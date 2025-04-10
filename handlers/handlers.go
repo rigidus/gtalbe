@@ -1,17 +1,15 @@
 package handlers
 
 import (
-    "context"
     "encoding/json"
     "net/http"
-    "strconv"
     "strings"
 
     "github.com/gorilla/mux"
     "go.uber.org/zap"
-    "github.com/yourproject/blockchain"
-    "github.com/yourproject/database"
-    "github.com/yourproject/models"
+    "app/blockchain"
+    "app/database"
+    "app/models"
 )
 
 // Handler encapsulates dependencies for HTTP handlers.

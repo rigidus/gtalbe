@@ -1,13 +1,11 @@
 package database
 
 import (
-    "context"
     "log"
     "os"
     "testing"
 
     "github.com/testcontainers/testcontainers-go"
-    "github.com/testcontainers/testcontainers-go/modules/postgres"
     "gorm.io/driver/postgres"
     "gorm.io/gorm"
 )

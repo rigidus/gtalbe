@@ -9,8 +9,8 @@ import (
     "go.uber.org/zap"
     "gorm.io/driver/postgres"
     "gorm.io/gorm"
-    "github.com/yourproject/blockchain"
-    "github.com/yourproject/handlers"
+    "app/blockchain"
+    "app/handlers"
 )
 
 func main() {

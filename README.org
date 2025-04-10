@@ -1,5 +1,7 @@
 #+STARTUP: showall indent hidestars
 
+Чтобы запустить проект и проверить решение тестового задания переходите к разделу
+
 * Задача:
 
 Разработать и реализовать на языке Go небольшой внутренний RESTful API, который продемонстрирует следующие возможности:
@@ -159,19 +161,108 @@ iFIL — ERC20-токен на FEVM для начисления вознагра
 
 * Зависимости
 
-Добавить в go.mod
+в go.mod
 
 #+BEGIN_SRC go :tangle go.mod
+  module app
+
+  go 1.20
+
   require (
-      github.com/ethereum/go-ethereum v1.13.14
-      github.com/glifio/go-pools-sdk v0.0.0 // Уточните версию
-      github.com/stretchr/testify v1.9.0
+      github.com/ethereum/go-ethereum v1.11.5
+      github.com/gorilla/mux v1.8.0
+      github.com/stretchr/testify v1.10.0
+      github.com/testcontainers/testcontainers-go v0.25.0
+      go.uber.org/zap v1.24.0
+      gorm.io/driver/postgres v1.4.5
+      gorm.io/gorm v1.25.5
+  )
+
+  require (
+      dario.cat/mergo v1.0.1 // indirect
+      github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1 // indirect
+      github.com/Microsoft/go-winio v0.6.2 // indirect
+      github.com/StackExchange/wmi v0.0.0-20180116203802-5d049714c4a6 // indirect
+      github.com/btcsuite/btcd/btcec/v2 v2.2.0 // indirect
+      github.com/cenkalti/backoff/v4 v4.2.1 // indirect
+      github.com/cespare/xxhash/v2 v2.3.0 // indirect
+      github.com/containerd/log v0.1.0 // indirect
+      github.com/containerd/platforms v0.2.1 // indirect
+      github.com/cpuguy83/dockercfg v0.3.2 // indirect
+      github.com/davecgh/go-spew v1.1.1 // indirect
+      github.com/deckarep/golang-set/v2 v2.1.0 // indirect
+      github.com/decred/dcrd/dcrec/secp256k1/v4 v4.0.1 // indirect
+      github.com/distribution/reference v0.6.0 // indirect
+      github.com/docker/docker v28.0.1+incompatible // indirect
+      github.com/docker/go-connections v0.5.0 // indirect
+      github.com/docker/go-units v0.5.0 // indirect
+      github.com/ebitengine/purego v0.8.2 // indirect
+      github.com/felixge/httpsnoop v1.0.4 // indirect
+      github.com/fsnotify/fsnotify v1.6.0 // indirect
+      github.com/go-logr/logr v1.4.2 // indirect
+      github.com/go-logr/stdr v1.2.2 // indirect
+      github.com/go-ole/go-ole v1.2.6 // indirect
+      github.com/go-stack/stack v1.8.1 // indirect
+      github.com/gogo/protobuf v1.3.2 // indirect
+      github.com/google/uuid v1.6.0 // indirect
+      github.com/gorilla/websocket v1.4.2 // indirect
+      github.com/grpc-ecosystem/grpc-gateway/v2 v2.24.0 // indirect
+      github.com/holiman/uint256 v1.2.0 // indirect
+      github.com/jackc/pgpassfile v1.0.0 // indirect
+      github.com/jackc/pgservicefile v0.0.0-20221227161230-091c0ba34f0a // indirect
+      github.com/jackc/pgx/v5 v5.5.4 // indirect
+      github.com/jackc/puddle/v2 v2.2.1 // indirect
+      github.com/jinzhu/inflection v1.0.0 // indirect
+      github.com/jinzhu/now v1.1.5 // indirect
+      github.com/klauspost/compress v1.17.4 // indirect
+      github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 // indirect
+      github.com/magiconair/properties v1.8.9 // indirect
+      github.com/moby/docker-image-spec v1.3.1 // indirect
+      github.com/moby/patternmatcher v0.6.0 // indirect
+      github.com/moby/sys/sequential v0.5.0 // indirect
+      github.com/moby/sys/user v0.1.0 // indirect
+      github.com/moby/sys/userns v0.1.0 // indirect
+      github.com/moby/term v0.5.0 // indirect
+      github.com/morikuni/aec v1.0.0 // indirect
+      github.com/opencontainers/go-digest v1.0.0 // indirect
+      github.com/opencontainers/image-spec v1.1.1 // indirect
+      github.com/pkg/errors v0.9.1 // indirect
+      github.com/pmezard/go-difflib v1.0.0 // indirect
+      github.com/power-devops/perfstat v0.0.0-20210106213030-5aafc221ea8c // indirect
+      github.com/shirou/gopsutil v3.21.4-0.20210419000835-c7a38de76ee5+incompatible // indirect
+      github.com/shirou/gopsutil/v4 v4.25.1 // indirect
+      github.com/sirupsen/logrus v1.9.3 // indirect
+      github.com/tklauser/go-sysconf v0.3.12 // indirect
+      github.com/tklauser/numcpus v0.6.1 // indirect
+      github.com/yusufpapurcu/wmi v1.2.4 // indirect
+      go.opentelemetry.io/auto/sdk v1.1.0 // indirect
+      go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.49.0 // indirect
+      go.opentelemetry.io/otel v1.35.0 // indirect
+      go.opentelemetry.io/otel/metric v1.35.0 // indirect
+      go.opentelemetry.io/otel/sdk v1.32.0 // indirect
+      go.opentelemetry.io/otel/trace v1.35.0 // indirect
+      go.uber.org/atomic v1.7.0 // indirect
+      go.uber.org/multierr v1.6.0 // indirect
+      golang.org/x/crypto v0.17.0 // indirect
+      golang.org/x/sync v0.11.0 // indirect
+      golang.org/x/sys v0.28.0 // indirect
+      golang.org/x/text v0.22.0 // indirect
+      google.golang.org/grpc v1.70.0 // indirect
+      google.golang.org/protobuf v1.36.5 // indirect
+      gopkg.in/natefinch/npipe.v2 v2.0.0-20160621034901-c1b8fa8bdcce // indirect
+      gopkg.in/yaml.v3 v3.0.1 // indirect
   )
 #+END_SRC
 
 * Модель для GORM
 
 #+BEGIN_SRC go :tangle models/Transaction.go
+  package models
+
+  import (
+      "time"
+  )
+
   type Transaction struct {
       ID        uint64    `gorm:"primaryKey"`
       Hash      string    `gorm:"type:varchar(66);unique"`
@@ -211,9 +302,7 @@ Client: Интерфейс для абстракции GLIF SDK и ERC20-кли�
 #+BEGIN_SRC go :tangle blockchain/types.go
   package blockchain
 
-  import (
-      "context"
-  )
+  import "context"
 
   // Client defines the interface for blockchain interactions.
   type Client interface {
@@ -235,100 +324,49 @@ Client: Интерфейс для абстракции GLIF SDK и ERC20-кли�
   package blockchain
 
   import (
-      "context"
-      "log"
+      "errors"
       "math/big"
+      "strings"
 
+      "github.com/ethereum/go-ethereum/accounts/abi"
       "github.com/ethereum/go-ethereum/accounts/abi/bind"
       "github.com/ethereum/go-ethereum/common"
       "github.com/ethereum/go-ethereum/ethclient"
-      "github.com/glifio/go-pools-sdk/sdk" // Предполагаемый импорт для GLIF SDK
   )
 
-  type BlockchainClient struct {
-      glifClient  *sdk.Client
-      ethClient   *ethclient.Client
-      ifilAddress common.Address
-  }
-
-  func NewBlockchainClient(rpcURL, ifilContractAddress string) (*BlockchainClient, error) {
-      // Инициализация GLIF клиента
-      glifClient, err := sdk.NewClient(rpcURL)
-      if err != nil {
-          return nil, err
-      }
-
-      // Инициализация Ethereum клиента для iFIL
-      ethClient, err := ethclient.Dial(rpcURL)
-      if err != nil {
-          return nil, err
-      }
-
-      return &BlockchainClient{
-          glifClient:  glifClient,
-          ethClient:   ethClient,
-          ifilAddress: common.HexToAddress(ifilContractAddress),
-      }, nil
-  }
-
-  // GetFILBalance retrieves the $FIL balance for a given address.
-  func (c *BlockchainClient) GetFILBalance(ctx context.Context, address string) (string, error) {
-      balance, err := c.glifClient.GetBalance(address)
-      if err != nil {
-          log.Printf("Failed to get FIL balance for %s: %v", address, err)
-          return "", err
-      }
-      return balance.String(), nil // Предполагается, что balance — big.Int
-  }
-
-  // GetIFILBalance retrieves the iFIL balance for a given address.
-  func (c *BlockchainClient) GetIFILBalance(ctx context.Context, address string) (string, error) {
-      // Предполагаем, что iFIL — стандартный ERC20 токен
-      contract, err := NewERC20(c.ifilAddress, c.ethClient)
-      if err != nil {
-          return "", err
-      }
-
-      balance, err := contract.BalanceOf(&bind.CallOpts{Context: ctx}, common.HexToAddress(address))
-      if err != nil {
-          log.Printf("Failed to get iFIL balance for %s: %v", address, err)
-          return "", err
-      }
-      return balance.String(), nil
-  }
-
-  // SubmitTransaction submits a signed transaction to the Filecoin network.
-  func (c *BlockchainClient) SubmitTransaction(ctx context.Context, signedTx string) (string, error) {
-      txHash, err := c.glifClient.SubmitTransaction(signedTx)
-      if err != nil {
-          log.Printf("Failed to submit transaction: %v", err)
-          return "", err
-      }
-      return txHash, nil
-  }
-
-  // ERC20 represents a minimal ERC20 contract interface (generated with abigen in real scenario).
   type ERC20 struct {
       contract *bind.BoundContract
   }
 
   func NewERC20(address common.Address, client *ethclient.Client) (*ERC20, error) {
-      // ABI для ERC20 метода balanceOf (в реальном проекте сгенерировать через abigen)
-      abi := `[{"constant":true,"inputs":[{"name":"_owner","type":"address"}],"name":"balanceOf","outputs":[{"name":"balance","type":"uint256"}],"type":"function"}]`
-      contract, err := bind.NewBoundContract(address, abi, client, client, client)
+      abiJSON := `[{"constant":true,"inputs":[{"name":"_owner","type":"address"}],"name":"balanceOf","outputs":[{"name":"balance","type":"uint256"}],"type":"function"}]`
+
+      parsedABI, err := abi.JSON(strings.NewReader(abiJSON))
       if err != nil {
           return nil, err
       }
+
+      contract := bind.NewBoundContract(address, parsedABI, client, client, client)
       return &ERC20{contract: contract}, nil
   }
 
   func (e *ERC20) BalanceOf(opts *bind.CallOpts, address common.Address) (*big.Int, error) {
-      var result []*big.Int
-      err := e.contract.Call(opts, &result, "balanceOf", address)
+      var out []interface{}
+      err := e.contract.Call(opts, &out, "balanceOf", address)
       if err != nil {
           return nil, err
       }
-      return result[0], nil
+
+      if len(out) != 1 {
+          return nil, errors.New("unexpected output from balanceOf")
+      }
+
+      balance, ok := out[0].(*big.Int)
+      if !ok {
+          return nil, errors.New("unexpected type in balanceOf output")
+      }
+
+      return balance, nil
   }
 #+END_SRC
 
@@ -337,7 +375,10 @@ Client: Интерфейс для абстракции GLIF SDK и ERC20-кли�
 #+BEGIN_SRC go :tangle database/database.go
   package database
 
-  import "gorm.io/gorm"
+  import (
+      "gorm.io/gorm"
+      "app/models" // ← имя модуля из go.mod + путь к папке
+  )
 
   func SaveTransaction(db *gorm.DB, tx *models.Transaction) error {
       return db.Create(tx).Error
@@ -384,17 +425,15 @@ GetTransactions
   package handlers
 
   import (
-      "context"
       "encoding/json"
       "net/http"
-      "strconv"
       "strings"
 
       "github.com/gorilla/mux"
       "go.uber.org/zap"
-      "github.com/yourproject/blockchain"
-      "github.com/yourproject/database"
-      "github.com/yourproject/models"
+      "app/blockchain"
+      "app/database"
+      "app/models"
   )
 
   // Handler encapsulates dependencies for HTTP handlers.
@@ -594,8 +633,8 @@ GetTransactions
       "go.uber.org/zap"
       "gorm.io/driver/postgres"
       "gorm.io/gorm"
-      "github.com/yourproject/blockchain"
-      "github.com/yourproject/handlers"
+      "app/blockchain"
+      "app/handlers"
   )
 
   func main() {
@@ -666,80 +705,6 @@ GetTransactions
 
 Перед тестированием надо настроить все окружение, моки etc
 
-Нужен Docker для запуска тестов БД, так как они требуют изолированного PostgreSQL.
-
-Dockerfile:
-
-#+BEGIN_SRC text
-  # Этап сборки
-  FROM golang:1.20-bullseye AS builder
-  WORKDIR /app
-  COPY go.mod go.sum ./
-  RUN go mod download
-  COPY . .
-  RUN CGO_ENABLED=0 GOOS=linux go build -o main .
-
-  # Этап запуска тестов
-  FROM golang:1.20-bullseye AS tester
-  WORKDIR /app
-  COPY --from=builder /app .
-  CMD ["go", "test", "./..."]
-
-  # Этап продакшен
-  FROM scratch AS production
-  COPY --from=builder /app/main /
-  EXPOSE 8080
-  CMD ["/main"]
-#+END_SRC
-
-docker-compose.yml:
-
-#+BEGIN_SRC text
-  version: '3.8'
-
-  services:
-    app:
-      build:
-        context: .
-        target: production
-      ports:
-        - "8080:8080"
-      environment:
-        - DATABASE_URL=postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?sslmode=disable
-        - BLOCKCHAIN_RPC_URL=${BLOCKCHAIN_RPC_URL}
-        - IFIL_CONTRACT_ADDRESS=${IFIL_CONTRACT_ADDRESS}
-      depends_on:
-        db:
-          condition: service_healthy
-
-    db:
-      image: postgres:16
-      environment:
-        - POSTGRES_USER=${POSTGRES_USER}
-        - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-        - POSTGRES_DB=${POSTGRES_DB}
-      volumes:
-        - pgdata:/var/lib/postgresql/data
-      healthcheck:
-        test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
-        interval: 10s
-        timeout: 5s
-        retries: 5
-
-  volumes:
-    pgdata:
-#+END_SRC
-
-.env.example:
-
-#+BEGIN_SRC text
-  POSTGRES_USER=testuser
-  POSTGRES_PASSWORD=testpass
-  POSTGRES_DB=testdb
-  BLOCKCHAIN_RPC_URL=https://api.calibration.node.glif.io/rpc/v0
-  IFIL_CONTRACT_ADDRESS=0x1234567890abcdef1234567890abcdef12345678
-#+END_SRC
-
 ** Тесты для API-обработчиков
 
 с использованием моков для блокчейна и базы данных
@@ -756,6 +721,14 @@ docker-compose.yml:
 - TestGetTransactions_NoTransactions: Проверяет возврат пустого списка при отсутствии транзакций.
 
 #+BEGIN_SRC go :tangle handlers/handlers_test.go
+  package handlers
+
+  import (
+      "testing"
+      "net/http"
+      "net/http/httptest"
+  )
+
   func TestGetBalance_Success(t *testing.T) {
       mockBC := &MockBlockchainClient{
           GetFILBalanceFunc: func(address string) (string, error) {
@@ -794,7 +767,6 @@ docker-compose.yml:
   package blockchain
 
   import (
-      "context"
       "math/big"
       "testing"
 
@@ -891,13 +863,11 @@ docker-compose.yml:
   package database
 
   import (
-      "context"
       "log"
       "os"
       "testing"
 
       "github.com/testcontainers/testcontainers-go"
-      "github.com/testcontainers/testcontainers-go/modules/postgres"
       "gorm.io/driver/postgres"
       "gorm.io/gorm"
   )
@@ -974,4 +944,124 @@ docker-compose.yml:
           t.Error("expected transactions but got none")
       }
   }
+#+END_SRC
+
+* Развертывание
+
+** Скопируйте файл ~.env.example~ в файл ~.env~:
+
+(в корнеой папке проекта)
+
+#+BEGIN_SRC sh
+  cp .env.example .env
+#+END_SRC
+
+Вот (для возможного редактирования) содержимое файла ~.env.example~:
+
+#+BEGIN_SRC text :tangle .env.example
+  POSTGRES_USER=testuser
+  POSTGRES_PASSWORD=testpass
+  POSTGRES_DB=testdb
+  BLOCKCHAIN_RPC_URL=https://api.calibration.node.glif.io/rpc/v0
+  IFIL_CONTRACT_ADDRESS=0x1234567890abcdef1234567890abcdef12345678
+#+END_SRC
+
+** Соберите и запустите проект через Docker Compose
+
+#+BEGIN_SRC sh
+  docker-compose up --build
+#+END_SRC
+
+В корневой директории проекта должен лежать файл docker-compose.yml с таким содержимым:
+
+#+BEGIN_SRC text :tangle docker-compose.yml
+  version: '3.8'
+
+  services:
+    app:
+      build:
+        context: .
+        target: production
+      ports:
+        - "8080:8080"
+      environment:
+        - DATABASE_URL=postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?sslmode=disable
+        - BLOCKCHAIN_RPC_URL=${BLOCKCHAIN_RPC_URL}
+        - IFIL_CONTRACT_ADDRESS=${IFIL_CONTRACT_ADDRESS}
+      depends_on:
+        db:
+          condition: service_healthy
+
+    db:
+      image: postgres:16
+      environment:
+        - POSTGRES_USER=${POSTGRES_USER}
+        - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+        - POSTGRES_DB=${POSTGRES_DB}
+      volumes:
+        - pgdata:/var/lib/postgresql/data
+      healthcheck:
+        test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+        interval: 10s
+        timeout: 5s
+        retries: 5
+
+  volumes:
+    pgdata:
+#+END_SRC
+
+Нужен Docker для запуска тестов БД, так как они требуют изолированного PostgreSQL.
+
+Dockerfile:
+
+#+BEGIN_SRC text :tangle Dockerfile
+  # Этап сборки
+  FROM golang:1.22-bookworm AS builder
+  WORKDIR /app
+  COPY go.mod go.sum ./
+  RUN go mod download
+  COPY . .
+  RUN CGO_ENABLED=0 GOOS=linux go build -o main .
+
+  # Этап запуска тестов
+  FROM golang:1.22-bookworm AS tester
+  WORKDIR /app
+  COPY --from=builder /app .
+  CMD ["go", "test", "./..."]
+
+  # Этап продакшен
+  FROM scratch AS production
+  COPY --from=builder /app/main /
+  EXPOSE 8080
+  CMD ["/main"]
+#+END_SRC
+
+
+Если "docker-compose up --build" отрабатала без ошибок - проект должен подняться и быть доступен по адресу: https://localhost:8080
+
+** Проверьте эндпойнты (например через curl или Postman):
+
+*** Получение баланса:
+
+#+BEGIN_SRC sh
+  curl http://localhost:8080/balance/0x1234567890abcdef1234567890abcdef12345678
+#+END_SRC
+
+*** Отправка транзакции:
+
+#+BEGIN_SRC sh
+  curl -X POST -H "Content-Type: application/json" \
+    -d '{
+          "signedTx": "0xdeadbeef",
+          "sender": "0x1234567890abcdef1234567890abcdef12345678",
+          "receiver": "0xabcdef1234567890abcdef1234567890abcdef12",
+          "amount": 100
+        }' \
+    http://localhost:8080/transaction
+#+END_SRC
+
+*** Получение истории транзакций:
+
+#+BEGIN_SRC sh
+  curl "http://localhost:8080/transactions?sender=0x1234567890abcdef1234567890abcdef12345678"
 #+END_SRC

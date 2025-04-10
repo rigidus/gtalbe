@@ -1,3 +1,11 @@
+package handlers
+
+import (
+    "testing"
+    "net/http"
+    "net/http/httptest"
+)
+
 func TestGetBalance_Success(t *testing.T) {
     mockBC := &MockBlockchainClient{
         GetFILBalanceFunc: func(address string) (string, error) {

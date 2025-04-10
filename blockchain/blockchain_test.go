@@ -1,7 +1,6 @@
 package blockchain
 
 import (
-    "context"
     "math/big"
     "testing"
 

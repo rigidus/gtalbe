@@ -1,3 +1,9 @@
+package models
+
+import (
+    "time"
+)
+
 type Transaction struct {
     ID        uint64    `gorm:"primaryKey"`
     Hash      string    `gorm:"type:varchar(66);unique"`

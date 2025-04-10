@@ -1,8 +1,6 @@
 package blockchain
 
-import (
-    "context"
-)
+import "context"
 
 // Client defines the interface for blockchain interactions.
 type Client interface {
