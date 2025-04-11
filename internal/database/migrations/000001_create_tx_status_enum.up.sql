@@ -1,0 +1,1 @@
+CREATE TYPE tx_status AS ENUM ('pending', 'confirmed', 'failed');

@@ -278,7 +278,7 @@ iFIL — ERC20-токен на FEVM для начисления вознагра
 
 по идее его надо бы генерировать из орга
 
-#+BEGIN_SRC sql :tangle migrations/create_transacts_tbl.sql
+#+BEGIN_SRC sql :tangle migrations/create_transacts_tbl_.sql.up
   CREATE TABLE transactions (
       id BIGSERIAL PRIMARY KEY,
       hash VARCHAR(66) UNIQUE NOT NULL,

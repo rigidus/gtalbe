@@ -1,81 +1,58 @@
 package database
 
 import (
-	"app/internal/database/models"
+	"context"
+	"database/sql"
+	"path/filepath"
+	"runtime"
 	"testing"
+	"time"
 
-	"gorm.io/gorm"
+	_ "github.com/lib/pq"
+	"github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/require"
+	"github.com/testcontainers/testcontainers-go/modules/compose"
 )
 
-var testDB *gorm.DB
-
-/*func TestMain(m *testing.M) {
+func TestNewDriver_WithDockerCompose(t *testing.T) {
 	ctx := context.Background()
-	postgresContainer, err := postgres.Run(ctx,
-		testcontainers.WithImage("postgres:16-alpine"),
-		postgres.WithDatabase("testdb"),
-		postgres.WithUsername("testuser"),
-		postgres.WithPassword("testpass"),
-	)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer postgresContainer.Terminate(ctx)
+	_, currentFile, _, ok := runtime.Caller(0)
+	require.True(t, ok, "cannot get current file location")
 
-	connectionString, err := postgresContainer.ConnectionString(ctx)
-	if err != nil {
-		log.Fatal(err)
-	}
+	composeFile := "docker_compose.yml"
+	composePath := filepath.Join(filepath.Dir(currentFile), "../../", composeFile)
+	absComposePath, err := filepath.Abs(composePath)
+	require.NoError(t, err, "failed to get absolute path to docker-compose.yml")
 
-	db, err := gorm.Open(postgres.Open(connectionString), &gorm.Config{})
-	if err != nil {
-		log.Fatal(err)
-	}
+	compose, err := compose.NewDockerCompose(absComposePath)
+	require.NoError(t, err)
 
-	db.AutoMigrate(&models.Transaction{})
+	err = compose.Up(ctx)
+	require.NoError(t, err)
 
-	testDB = db
+	t.Cleanup(func() { compose.Down(ctx) })
 
-	code := m.Run()
+	time.Sleep(5 * time.Second)
 
-	os.Exit(code)
-}
-*/
+	dsn := "postgres://postgres:password@localhost:5432/postgres?sslmode=disable"
 
-func TestSaveTransaction_Success(t *testing.T) {
-	tx := &models.Transaction{
-		Hash:     "0xabc",
-		Sender:   "0x123",
-		Receiver: "0x456",
-		Amount:   100,
-		Status:   "pending",
-	}
+	logger := logrus.New()
+	driver, err := NewDriver(logger, dsn)
+	require.NoError(t, err)
+	require.NotNil(t, driver)
 
-	err := SaveTransaction(testDB, tx)
-	if err != nil {
-		t.Errorf("failed to save transaction: %v", err)
-	}
+	db, err := sql.Open("postgres", dsn)
+	require.NoError(t, err)
+	defer db.Close()
 
-	var savedTx models.Transaction
-	testDB.First(&savedTx, "hash = ?", "0xabc")
-	if savedTx.ID == 0 {
-		t.Error("transaction not saved")
-	}
-}
-
-func TestGetTransactions_Success(t *testing.T) {
-	// Предварительно сохраняем транзакцию для теста
-	tx := &models.Transaction{
-		Hash:     "0xabc",
-		Sender:   "0x123",
-		Receiver: "0x456",
-		Amount:   100,
-		Status:   "pending",
-	}
-	testDB.Create(tx)
-
-	transactions := GetTransactions(testDB)
-	if len(transactions) == 0 {
-		t.Error("expected transactions but got none")
-	}
+	var exists bool
+	query := `
+		SELECT EXISTS (
+			SELECT FROM information_schema.tables
+			WHERE table_schema = 'public' AND table_name = 'transactions'
+		);
+	`
+	err = db.QueryRow(query).Scan(&exists)
+	require.NoError(t, err)
+	require.True(t, exists, "transactions table should exist after migration")
 }
