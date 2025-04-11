@@ -443,8 +443,8 @@ GetTransactions
       logger *zap.Logger
   }
 
-  // NewHandler creates a new Handler instance with dependencies.
-  func NewHandler(bc blockchain.Client, db *gorm.DB, logger *zap.Logger) *Handler {
+  // NewServer creates a new Handler instance with dependencies.
+  func NewServer(bc blockchain.Client, db *gorm.DB, logger *zap.Logger) *Handler {
       return &Handler{
           bc:     bc,
           db:     db,
@@ -453,7 +453,7 @@ GetTransactions
   }
 
   // GetBalance handles GET /balance/{address} to retrieve FIL and iFIL balances.
-  func (h *Handler) GetBalance(w http.ResponseWriter, r *http.Request) {
+  func (s *Server) GetBalance(w http.ResponseWriter, r *http.Request) {
       vars := mux.Vars(r)
       address := vars["address"]
       ctx := r.Context()
@@ -496,7 +496,7 @@ GetTransactions
   }
 
   // SubmitTransaction handles POST /transaction to submit a new transaction.
-  func (h *Handler) SubmitTransaction(w http.ResponseWriter, r *http.Request) {
+  func (s *Server) SubmitTransaction(w http.ResponseWriter, r *http.Request) {
       ctx := r.Context()
 
       // Декодирование запроса
@@ -571,7 +571,7 @@ GetTransactions
   }
 
   // GetTransactions handles GET /transactions to retrieve transaction records.
-  func (h *Handler) GetTransactions(w http.ResponseWriter, r *http.Request) {
+  func (s *Server) GetTransactions(w http.ResponseWriter, r *http.Request) {
       ctx := r.Context()
       query := r.URL.Query()
 
@@ -658,7 +658,7 @@ GetTransactions
       }
 
       // Инициализация обработчиков
-      h := handlers.NewHandler(bc, db, logger)
+      h := handlers.NewServer(bc, db, logger)
 
       // Настройка маршрутов
       r := mux.NewRouter()

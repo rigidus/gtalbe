@@ -1,51 +1,52 @@
 package main
 
 import (
-    "log"
-    "net/http"
-    "os"
+	"app/internal/blockchain"
+	"app/internal/database"
+	"app/internal/server"
+	"context"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/ethclient"
+	"os"
 
-    "github.com/gorilla/mux"
-    "go.uber.org/zap"
-    "gorm.io/driver/postgres"
-    "gorm.io/gorm"
-    "app/blockchain"
-    "app/handlers"
+	"go.uber.org/zap"
 )
 
 func main() {
-    // Инициализация логгера
-    logger, _ := zap.NewProduction()
-    defer logger.Sync()
+	logger, _ := zap.NewProduction()
+	defer logger.Sync()
 
-    // Подключение к базе данных
-    dbURL := os.Getenv("DATABASE_URL")
-    db, err := gorm.Open(postgres.Open(dbURL), &gorm.Config{})
-    if err != nil {
-        logger.Fatal("Failed to connect to database", zap.Error(err))
-    }
+	rpcURL := os.Getenv("BLOCKCHAIN_RPC_URL")
+	if rpcURL == "" {
+		logger.Fatal("BLOCKCHAIN_RPC_URL environment variable not set")
+	}
 
-    // Инициализация клиента блокчейна
-    rpcURL := os.Getenv("BLOCKCHAIN_RPC_URL")
-    ifilAddress := os.Getenv("IFIL_CONTRACT_ADDRESS")
-    bc, err := blockchain.NewBlockchainClient(rpcURL, ifilAddress)
-    if err != nil {
-        logger.Fatal("Failed to initialize blockchain client", zap.Error(err))
-    }
+	ifilAddress := os.Getenv("IFIL_CONTRACT_ADDRESS_HEX")
+	if ifilAddress == "" {
+		logger.Fatal("IFIL_CONTRACT_ADDRESS environment variable not set")
+	}
 
-    // Инициализация обработчиков
-    h := handlers.NewHandler(bc, db, logger)
+	client, err := ethclient.Dial(rpcURL)
+	if err != nil {
+		logger.Fatal("Failed to connect to ethereum client", zap.Error(err))
+	}
 
-    // Настройка маршрутов
-    r := mux.NewRouter()
-    r.HandleFunc("/balance/{address}", h.GetBalance).Methods("GET")
-    r.HandleFunc("/transaction", h.SubmitTransaction).Methods("POST")
-    r.HandleFunc("/transactions", h.GetTransactions).Methods("GET")
+	// TODO check if address is valid
+	_, err = blockchain.NewERC20(common.HexToAddress(ifilAddress), client)
+	if err != nil {
+		logger.Fatal("Failed to initialize blockchain client", zap.Error(err))
+	}
 
-    // Запуск сервера
-    port := ":8080"
-    logger.Info("Starting server", zap.String("port", port))
-    if err := http.ListenAndServe(port, r); err != nil {
-        logger.Fatal("Server failed", zap.Error(err))
-    }
+	dbURL := os.Getenv("DATABASE_DNS")
+	dbDriver, err := database.NewDriver(dbURL)
+	if err != nil {
+		logger.Fatal("Failed to connect to database", zap.Error(err))
+	}
+
+	// TODO pass realy blockchain client
+	srv := server.NewServer(nil, dbDriver, logger)
+	srv.Start(":8080")
+
+	ctx := context.Background()
+	<-ctx.Done()
 }
